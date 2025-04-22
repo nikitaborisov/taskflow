@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import sys
 
 def process_section(content, section_pattern):
-    """Process a section to extract and remove completed items."""
+    """Process a section to extract and remove completed items and mark uncompleted ones."""
     section = re.search(section_pattern, content, re.DOTALL)
     completed_items = []
     
@@ -16,12 +16,33 @@ def process_section(content, section_pattern):
         completed_in_section = re.findall(completed_pattern, section_content, re.MULTILINE)
         completed_items.extend(completed_in_section)
 
-        # Remove completed items from section
-        for item in completed_in_section:
-            new_section_content = new_section_content.replace(item, '')
+        # Find and process uncompleted items
+        uncompleted_pattern = r'^(\s*- \[ \][ \t]+)(.*?)$'
+        uncompleted_items = re.findall(uncompleted_pattern, section_content, re.MULTILINE)
+        
+        # Process each uncompleted item
+        for checkbox, rest in uncompleted_items:
+            # Check if there's already a '>' marker
+            if rest.startswith('>'):
+                # Add another '>' to existing markers
+                new_item = f"{checkbox}>{rest}"
+            else:
+                # Add first '>' marker with a space
+                new_item = f"{checkbox}> {rest}"
+            
+            # Replace the old item with the new one
+            old_item = f"{checkbox}{rest}"
+            new_section_content = new_section_content.replace(old_item, new_item)
 
-        # Clean up empty lines
+        # Remove completed items from section and their trailing newlines
+        for item in completed_in_section:
+            # Remove the item and its trailing newline
+            new_section_content = re.sub(rf'{re.escape(item)}\n?', '', new_section_content)
+
+        # Clean up multiple newlines and ensure proper section formatting
         new_section_content = re.sub(r'\n\s*\n\s*\n', '\n\n', new_section_content)
+        # Remove leading newlines after the section header
+        new_section_content = re.sub(r'(## [^\n]+)\n+', r'\1\n', new_section_content)
 
         # Replace the section in the original content
         content = content.replace(section_content, new_section_content)
