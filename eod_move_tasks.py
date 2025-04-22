@@ -66,38 +66,49 @@ def process_markdown_file(file_path):
     
     completed_items = today_completed + tonight_completed
 
-    # Find or create Completed section
-    completed_section = re.search(r'## Completed\s*(?:\n.*?)*?(?=##|\Z)', content, re.DOTALL)
+    # Only proceed with creating/updating Completed section if there are completed items
+    if completed_items:
+        # Find or create Completed section
+        completed_section = re.search(r'## Completed\s*(?:\n.*?)*?(?=##|\Z)', content, re.DOTALL)
 
-    if completed_section:
-        # Check if yesterday's section already exists
-        yesterday_section = re.search(rf'### {yesterday}\s*(?:\n.*?)*?(?=###|\Z)', completed_section.group(0), re.DOTALL)
+        if completed_section:
+            # Get all yesterday sections
+            yesterday_sections = re.findall(rf'### {yesterday}\s*(?:\n.*?)*?(?=###|\Z)', completed_section.group(0), re.DOTALL)
+            
+            if yesterday_sections:
+                # Merge all yesterday sections into one
+                merged_yesterday_content = f"### {yesterday}\n"
+                for section in yesterday_sections:
+                    # Extract the items from each section (excluding the header)
+                    items = re.findall(r'^(\s*- \[x\].*?)$', section, re.MULTILINE)
+                    for item in items:
+                        merged_yesterday_content += f"{item}\n"
+                
+                # Add new completed items
+                for item in completed_items:
+                    merged_yesterday_content += f"{item}\n"
+                
+                # Replace all yesterday sections with the merged one
+                content = re.sub(rf'### {yesterday}\s*(?:\n.*?)*?(?=###|\Z)', merged_yesterday_content, completed_section.group(0), flags=re.DOTALL)
+                content = content.replace(completed_section.group(0), content)
+            else:
+                # Create new yesterday section
+                new_section = f"### {yesterday}\n"
+                for item in completed_items:
+                    new_section += f"{item}\n"
 
-        if yesterday_section:
-            # Add to existing yesterday section
-            new_yesterday_content = yesterday_section.group(0)
-            for item in completed_items:
-                new_yesterday_content += f"\n{item}"
-
-            content = content.replace(yesterday_section.group(0), new_yesterday_content)
+                # Add to completed section
+                completed_content = completed_section.group(0)
+                new_completed_content = completed_content.replace("## Completed", f"## Completed\n{new_section}")
+                content = content.replace(completed_content, new_completed_content)
         else:
-            # Create new yesterday section
-            new_section = f"### {yesterday}\n"
+            # Create new Completed section with yesterday subsection
+            new_section = f"## Completed\n### {yesterday}\n"
             for item in completed_items:
                 new_section += f"{item}\n"
 
-            # Add to completed section
-            completed_content = completed_section.group(0)
-            new_completed_content = completed_content.replace("## Completed", f"## Completed\n{new_section}")
-            content = content.replace(completed_content, new_completed_content)
-    else:
-        # Create new Completed section with yesterday subsection
-        new_section = f"## Completed\n### {yesterday}\n"
-        for item in completed_items:
-            new_section += f"{item}\n"
-
-        # Add at the end of the file
-        content += f"\n\n{new_section}"
+            # Add at the end of the file
+            content += f"\n\n{new_section}"
 
     # Write the updated content back to the file
     with open(file_path, 'w') as file:
