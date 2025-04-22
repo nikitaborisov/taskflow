@@ -2,6 +2,32 @@ import re
 from datetime import datetime, timedelta
 import sys
 
+def process_section(content, section_pattern):
+    """Process a section to extract and remove completed items."""
+    section = re.search(section_pattern, content, re.DOTALL)
+    completed_items = []
+    
+    if section:
+        section_content = section.group(0)
+        new_section_content = section_content
+
+        # Find completed items
+        completed_pattern = r'^(\s*- \[x\].*?)$'
+        completed_in_section = re.findall(completed_pattern, section_content, re.MULTILINE)
+        completed_items.extend(completed_in_section)
+
+        # Remove completed items from section
+        for item in completed_in_section:
+            new_section_content = new_section_content.replace(item, '')
+
+        # Clean up empty lines
+        new_section_content = re.sub(r'\n\s*\n\s*\n', '\n\n', new_section_content)
+
+        # Replace the section in the original content
+        content = content.replace(section_content, new_section_content)
+    
+    return content, completed_items
+
 def process_markdown_file(file_path):
     # Read the file
     with open(file_path, 'r') as file:
@@ -10,54 +36,14 @@ def process_markdown_file(file_path):
     # Get yesterday's date formatted as "Month Day, Year"
     yesterday = (datetime.now() - timedelta(days=1)).strftime("%B %d, %Y")
 
-    # Find today and tonight sections
+    # Process Today and Tonight sections
     today_pattern = r'## Today\s*(?:\n.*?)*?(?=##|\Z)'
     tonight_pattern = r'## Tonight\s*(?:\n.*?)*?(?=##|\Z)'
 
-    today_section = re.search(today_pattern, content, re.DOTALL)
-    tonight_section = re.search(tonight_pattern, content, re.DOTALL)
-
-    completed_items = []
-
-    # Process Today section
-    if today_section:
-        today_content = today_section.group(0)
-        new_today_content = today_content
-
-        # Find completed items
-        completed_pattern = r'^(\s*- \[x\].*?)$'
-        completed_in_today = re.findall(completed_pattern, today_content, re.MULTILINE)
-        completed_items.extend(completed_in_today)
-
-        # Remove completed items from Today section
-        for item in completed_in_today:
-            new_today_content = new_today_content.replace(item, '')
-
-        # Clean up empty lines
-        new_today_content = re.sub(r'\n\s*\n\s*\n', '\n\n', new_today_content)
-
-        # Replace the section in the original content
-        content = content.replace(today_content, new_today_content)
-
-    # Process Tonight section
-    if tonight_section:
-        tonight_content = tonight_section.group(0)
-        new_tonight_content = tonight_content
-
-        # Find completed items
-        completed_pattern = r'^(\s*- \[x\].*?)$'
-        completed_in_tonight = re.findall(completed_pattern, tonight_content, re.MULTILINE)
-        completed_items.extend(completed_in_tonight)
-
-        # Remove completed items from Tonight section
-        for item in completed_in_tonight:
-            new_tonight_content = new_tonight_content.replace(item, '')
-
-        # Clean up empty lines
-        new_tonight_content = re.sub(r'\n\s*\n\s*\n', '\n\n', new_tonight_content)
-
-        # Replace the section in the original content
-        content = content.replace(tonight_content, new_tonight_content)
+    content, today_completed = process_section(content, today_pattern)
+    content, tonight_completed = process_section(content, tonight_pattern)
+    
+    completed_items = today_completed + tonight_completed
 
     # Find or create Completed section
     completed_section = re.search(r'## Completed\s*(?:\n.*?)*?(?=##|\Z)', content, re.DOTALL)
