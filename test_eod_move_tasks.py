@@ -2,7 +2,7 @@ import unittest
 import os
 import tempfile
 from datetime import datetime, timedelta
-from eod_move_tasks import process_markdown_file
+from eod_move_tasks import process_markdown_file, split_into_sections
 import re
 
 class TestEodMoveTasks(unittest.TestCase):
@@ -253,6 +253,182 @@ class TestEodMoveTasks(unittest.TestCase):
         self.assertIn("- [x] Old completed task", completed_content)
         self.assertIn("- [x] Completed task 1", completed_content)
         self.assertIn("- [x] Completed task 2", completed_content)
+
+    def test_completed_section_newlines(self):
+        """Regression test to verify proper newline handling between sections in the Completed section."""
+        yesterday = (datetime.now() - timedelta(days=1)).strftime("%B %d, %Y")
+        two_days_ago = (datetime.now() - timedelta(days=2)).strftime("%B %d, %Y")
+        
+        test_content = f"""## Today
+- [x] New completed task 1
+- [ ] Uncompleted task
+
+## Tonight
+- [x] New completed task 2
+
+## Completed
+### {two_days_ago}
+- [x] Old task 1
+- [x] Old task 2"""
+        
+        self.write_test_content(test_content)
+        process_markdown_file(self.temp_file_path)
+        
+        content = self.read_test_content()
+        
+        # Get the Completed section content
+        completed_content = self.get_section_content(content, "Completed")
+        
+        # Split the content into lines for analysis
+        lines = completed_content.split('\n')
+        
+        # Find the indices of section headers
+        header_indices = [i for i, line in enumerate(lines) if line.startswith('###')]
+        
+        # Verify there's exactly one newline between sections
+        for i in range(len(header_indices) - 1):
+            # Get the lines between this header and the next
+            section_lines = lines[header_indices[i]:header_indices[i + 1]]
+            # Count empty lines at the end of the section
+            empty_lines_at_end = 0
+            for line in reversed(section_lines):
+                if line.strip() == '':
+                    empty_lines_at_end += 1
+                else:
+                    break
+            self.assertEqual(empty_lines_at_end, 0, 
+                           f"Found {empty_lines_at_end} empty lines between sections instead of 0")
+        
+        # Verify the content has the expected format (new tasks at the end)
+        expected_pattern = f"""### {two_days_ago}
+- [x] Old task 1
+- [x] Old task 2
+### {yesterday}
+- [x] New completed task 1
+- [x] New completed task 2"""
+        
+        self.assertEqual(completed_content.strip(), expected_pattern)
+
+class TestSplitIntoSections(unittest.TestCase):
+    def test_empty_content(self):
+        content = ""
+        result = split_into_sections(content)
+        self.assertEqual(result, [])
+
+    def test_no_sections(self):
+        content = "Some regular text\nwithout any headers"
+        result = split_into_sections(content)
+        self.assertEqual(result, [])
+
+    def test_single_section(self):
+        content = """## Today
+- Task 1
+- Task 2"""
+        result = split_into_sections(content)
+        self.assertEqual(result, [("Today", "- Task 1\n- Task 2")])
+
+    def test_multiple_sections(self):
+        content = """## Today
+- Task 1
+- Task 2
+
+## Tonight
+- Task 3
+- Task 4
+
+## Completed
+- Task 5"""
+        result = split_into_sections(content)
+        expected = [
+            ("Today", "- Task 1\n- Task 2"),
+            ("Tonight", "- Task 3\n- Task 4"),
+            ("Completed", "- Task 5")
+        ]
+        self.assertEqual(result, expected)
+
+    def test_empty_section(self):
+        content = """## Today
+## Tonight
+- Task 1"""
+        result = split_into_sections(content)
+        expected = [
+            ("Today", ""),
+            ("Tonight", "- Task 1")
+        ]
+        self.assertEqual(result, expected)
+
+    def test_whitespace_handling(self):
+        content = """## Today  
+- Task 1  
+- Task 2  
+
+## Tonight  
+- Task 3  
+- Task 4  """
+        result = split_into_sections(content)
+        expected = [
+            ("Today", "- Task 1\n- Task 2"),
+            ("Tonight", "- Task 3\n- Task 4")
+        ]
+        self.assertEqual(result, expected)
+
+    def test_nested_headers(self):
+        content = """## Today
+- Task 1
+### Subsection
+- Task 2
+## Tonight
+- Task 3"""
+        result = split_into_sections(content)
+        expected = [
+            ("Today", "- Task 1\n### Subsection\n- Task 2"),
+            ("Tonight", "- Task 3")
+        ]
+        self.assertEqual(result, expected)
+
+    def test_subsection_splitting(self):
+        content = """## Today
+- Task 1
+
+### Morning
+- Morning task 1
+- Morning task 2
+
+### Afternoon
+- Afternoon task 1
+- Afternoon task 2
+
+## Tonight
+### Evening
+- Evening task 1
+
+### Night
+- Night task 1
+- Night task 2"""
+        
+        # Test splitting main sections
+        main_sections = split_into_sections(content, '## ')
+        expected_main = [
+            ("Today", "- Task 1\n\n### Morning\n- Morning task 1\n- Morning task 2\n\n### Afternoon\n- Afternoon task 1\n- Afternoon task 2"),
+            ("Tonight", "### Evening\n- Evening task 1\n\n### Night\n- Night task 1\n- Night task 2")
+        ]
+        self.assertEqual(main_sections, expected_main)
+
+        # Test splitting subsections of "Today"
+        today_subsections = split_into_sections(main_sections[0][1], '### ')
+        expected_today_subs = [
+            ("Morning", "- Morning task 1\n- Morning task 2"),
+            ("Afternoon", "- Afternoon task 1\n- Afternoon task 2")
+        ]
+        self.assertEqual(today_subsections, expected_today_subs)
+
+        # Test splitting subsections of "Tonight"
+        tonight_subsections = split_into_sections(main_sections[1][1], '### ')
+        expected_tonight_subs = [
+            ("Evening", "- Evening task 1"),
+            ("Night", "- Night task 1\n- Night task 2")
+        ]
+        self.assertEqual(tonight_subsections, expected_tonight_subs)
 
 if __name__ == '__main__':
     unittest.main() 
