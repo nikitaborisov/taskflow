@@ -1,11 +1,9 @@
 # Todo List
 
 ## High Priority
-- [ ] Fix test failure for pre-existing section
 
 ## Medium Priority
 - [ ] Improve test coverage
-- [ ] Rewrite the processing to be line-by-line rather than regex
 - [ ] Create a requirements.txt file for dependencies
 
 ## Low Priority
@@ -14,6 +12,11 @@
 - [ ] Create a setup script
 - [ ] Add CI/CD pipeline
 - [ ] Add documentation for TODO format, API usage
+- [ ] Consider rewriting processing to be line-by-line
 
 ## Future Ideas
 - [ ] Add web app interface
+
+## Completed 
+- [x] Fix test failure for pre-existing section
+- [x] Rewrite the processing to be section-by-section
