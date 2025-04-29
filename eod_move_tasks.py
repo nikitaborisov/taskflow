@@ -39,6 +39,8 @@ def split_into_sections(content, section_pattern='## '):
 def process_tasks(content):
     """
     Process a section's content to extract completed items and mark uncompleted ones.
+    Handles subtasks by moving completed subtasks to the Completed section while
+    preserving their relationship to the parent task.
     
     Args:
         content (str): The content of a section
@@ -48,36 +50,84 @@ def process_tasks(content):
                and completed_items is a list of completed task lines
     """
     completed_items = []
-    new_content = content
-
-    # Find completed items
-    completed_pattern = r'^(\s*- \[x\].*?)$'
-    completed_items = re.findall(completed_pattern, content, re.MULTILINE)
-
-    # Find and process uncompleted items
-    uncompleted_pattern = r'^(\s*- \[ \][ \t]+)(.*?)$'
-    uncompleted_items = re.findall(uncompleted_pattern, content, re.MULTILINE)
+    lines = content.split('\n')
+    new_lines = []
+    i = 0
     
-    # Process each uncompleted item
-    for checkbox, rest in uncompleted_items:
-        # Check if there's already a '>' marker
-        if rest.startswith('>'):
-            # Add another '>' to existing markers
-            new_item = f"{checkbox}>{rest}"
-        else:
-            # Add first '>' marker with a space
-            new_item = f"{checkbox}> {rest}"
+    while i < len(lines):
+        line = lines[i].rstrip()
+        # Skip empty lines
+        if not line:
+            new_lines.append(line)
+            i += 1
+            continue
+            
+        # Find task line
+        task_match = re.match(r'^(\s*)- \[([ x])\](.*?)$', line)
+        if not task_match:
+            new_lines.append(line)
+            i += 1
+            continue
+            
+        indent, status, task_content = task_match.groups()
+        main_task = task_content.strip()
         
-        # Replace the old item with the new one
-        old_item = f"{checkbox}{rest}"
-        new_content = new_content.replace(old_item, new_item)
+        # Collect subtasks
+        subtasks = []
+        j = i + 1
+        while j < len(lines) and lines[j].startswith(indent + '  '):
+            subtasks.append(lines[j])  # Keep the original line with indentation
+            j += 1
+            
+        # Process completed subtasks
+        completed_subtasks = []
+        remaining_subtasks = []
+        for subtask in subtasks:
+            if '- [x]' in subtask:
+                completed_subtasks.append(subtask)
+            else:
+                remaining_subtasks.append(subtask)
+        
+        # Handle the main task based on its status and subtasks
+        if status == 'x' or (subtasks and all('- [x]' in subtask for subtask in subtasks)):
+            # If the task is completed or all subtasks are completed, move everything to completed
+            completed_task = f"{indent}- [x] {main_task}"
+            if subtasks:
+                completed_task += '\n' + '\n'.join(subtask for subtask in subtasks)
+            completed_items.append(completed_task)
+        else:
+            # For tasks with some completed subtasks or uncompleted tasks
+            if completed_subtasks:
+                # Move completed subtasks to completed items, preserving parent task's original state
+                completed_task = f"{indent}- [{status}] {main_task}"
+                completed_task += '\n' + '\n'.join(subtask for subtask in completed_subtasks)
+                completed_items.append(completed_task)
+            
+            # Add the main task with appropriate markers
+            if not indent and status == ' ':
+                # Split task into markers and content
+                parts = main_task.split(' ', 1)
+                if len(parts) > 1 and parts[0].startswith('>'):
+                    # Add one more marker
+                    markers = parts[0] + '>'
+                    task_text = parts[1]
+                else:
+                    # First marker
+                    markers = '>'
+                    task_text = main_task
+                
+                new_lines.append(f"{indent}- [ ] {markers} {task_text}")
+            else:
+                new_lines.append(f"{indent}- [{status}] {main_task}")
+            
+            # Add remaining subtasks
+            for subtask in remaining_subtasks:
+                new_lines.append(subtask)
+        
+        i = j if subtasks else i + 1
 
-    # Remove completed items from section and their trailing newlines
-    for item in completed_items:
-        # Remove the item and its trailing newline
-        new_content = re.sub(rf'{re.escape(item)}\n?', '', new_content)
-
-    # Clean up multiple newlines and ensure proper section formatting
+    # Join lines and clean up multiple newlines
+    new_content = '\n'.join(new_lines)
     new_content = re.sub(r'\n\s*\n\s*\n', '\n\n', new_content)
     # Remove leading newlines after the section header
     new_content = re.sub(r'(## [^\n]+)\n+', r'\1\n', new_content)

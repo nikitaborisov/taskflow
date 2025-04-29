@@ -309,6 +309,153 @@ class TestEodMoveTasks(unittest.TestCase):
         
         self.assertEqual(completed_content.strip(), expected_pattern)
 
+    def test_subtask_handling(self):
+        """Test that completed subtasks are moved to Completed section while preserving parent task."""
+        test_content = """## Today
+- [ ] ! Hotels for +flaz25 trip
+  - [x] GNV
+  - [ ] TPA
+  - [ ] PHX
+
+- [ ] ! Another task
+  - [x] Subtask 1
+  - [x] Subtask 2
+  - [ ] Subtask 3
+
+## Completed"""
+        
+        self.write_test_content(test_content)
+        process_markdown_file(self.temp_file_path)
+        
+        content = self.read_test_content()
+        yesterday = (datetime.now() - timedelta(days=1)).strftime("%B %d, %Y")
+        
+        # Get content of each section
+        today_content = self.get_section_content(content, "Today")
+        completed_content = self.get_section_content(content, "Completed")
+        
+        # Check Today section
+        self.assertIn("- [ ] > ! Hotels for +flaz25 trip", today_content)
+        self.assertIn("  - [ ] TPA", today_content)
+        self.assertIn("  - [ ] PHX", today_content)
+        self.assertNotIn("  - [x] GNV", today_content)
+        
+        self.assertIn("- [ ] > ! Another task", today_content)
+        self.assertIn("  - [ ] Subtask 3", today_content)
+        self.assertNotIn("  - [x] Subtask 1", today_content)
+        self.assertNotIn("  - [x] Subtask 2", today_content)
+        
+        # Check Completed section
+        self.assertIn(f"### {yesterday}", completed_content)
+        self.assertIn("- [ ] ! Hotels for +flaz25 trip", completed_content)
+        self.assertIn("  - [x] GNV", completed_content)
+        self.assertIn("- [ ] ! Another task", completed_content)
+        self.assertIn("  - [x] Subtask 1", completed_content)
+        self.assertIn("  - [x] Subtask 2", completed_content)
+
+    def test_completed_parent_task(self):
+        """Test that a completed parent task with all completed subtasks is fully moved to Completed."""
+        test_content = """## Today
+- [x] ! Fully completed task
+  - [x] Subtask 1
+  - [x] Subtask 2
+
+- [ ] ! Incomplete task
+  - [x] Subtask 1
+  - [ ] Subtask 2
+
+## Completed"""
+        
+        self.write_test_content(test_content)
+        process_markdown_file(self.temp_file_path)
+        
+        content = self.read_test_content()
+        yesterday = (datetime.now() - timedelta(days=1)).strftime("%B %d, %Y")
+        
+        # Get content of each section
+        today_content = self.get_section_content(content, "Today")
+        completed_content = self.get_section_content(content, "Completed")
+        
+        # Check Today section
+        self.assertNotIn("- [x] ! Fully completed task", today_content)
+        self.assertIn("- [ ] > ! Incomplete task", today_content)
+        self.assertIn("  - [ ] Subtask 2", today_content)
+        self.assertNotIn("  - [x] Subtask 1", today_content)
+        
+        # Check Completed section
+        self.assertIn(f"### {yesterday}", completed_content)
+        self.assertIn("- [x] ! Fully completed task", completed_content)
+        self.assertIn("  - [x] Subtask 1", completed_content)
+        self.assertIn("  - [x] Subtask 2", completed_content)
+        self.assertIn("- [ ] ! Incomplete task", completed_content)
+        self.assertIn("  - [x] Subtask 1", completed_content)
+
+    def test_multiple_days_subtask_progress(self):
+        """Test that subtask progress is tracked correctly over multiple days."""
+        test_content = """## Today
+- [ ] > ! Hotels for +flaz25 trip
+  - [x] GNV
+  - [ ] TPA
+  - [ ] PHX
+
+## Completed
+### Yesterday
+- [ ] ! Hotels for +flaz25 trip
+  - [x] GNV"""
+        
+        self.write_test_content(test_content)
+        process_markdown_file(self.temp_file_path)
+        
+        content = self.read_test_content()
+        yesterday = (datetime.now() - timedelta(days=1)).strftime("%B %d, %Y")
+        
+        # Get content of each section
+        today_content = self.get_section_content(content, "Today")
+        completed_content = self.get_section_content(content, "Completed")
+        
+        # Check Today section
+        self.assertIn("- [ ] >> ! Hotels for +flaz25 trip", today_content)
+        self.assertIn("  - [ ] TPA", today_content)
+        self.assertIn("  - [ ] PHX", today_content)
+        self.assertNotIn("  - [x] GNV", today_content)
+        
+        # Check Completed section
+        self.assertIn(f"### {yesterday}", completed_content)
+        self.assertIn("- [ ] ! Hotels for +flaz25 trip", completed_content)
+        self.assertIn("  - [x] GNV", completed_content)
+
+    def test_subtask_indentation(self):
+        """Test that subtask indentation is preserved correctly."""
+        test_content = """## Today
+- [ ] ! Task with nested subtasks
+  - [x] Level 1
+    - [x] Level 2
+      - [x] Level 3
+  - [ ] Uncompleted
+
+## Completed"""
+        
+        self.write_test_content(test_content)
+        process_markdown_file(self.temp_file_path)
+        
+        content = self.read_test_content()
+        yesterday = (datetime.now() - timedelta(days=1)).strftime("%B %d, %Y")
+        
+        # Get content of each section
+        today_content = self.get_section_content(content, "Today")
+        completed_content = self.get_section_content(content, "Completed")
+        
+        # Check Today section
+        self.assertIn("- [ ] > ! Task with nested subtasks", today_content)
+        self.assertIn("  - [ ] Uncompleted", today_content)
+        
+        # Check Completed section
+        self.assertIn(f"### {yesterday}", completed_content)
+        self.assertIn("- [ ] ! Task with nested subtasks", completed_content)
+        self.assertIn("  - [x] Level 1", completed_content)
+        self.assertIn("    - [x] Level 2", completed_content)
+        self.assertIn("      - [x] Level 3", completed_content)
+
 class TestSplitIntoSections(unittest.TestCase):
     def test_empty_content(self):
         content = ""
