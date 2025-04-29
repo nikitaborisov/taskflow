@@ -1,6 +1,7 @@
 import re
 from datetime import datetime, timedelta
 import sys
+import argparse
 
 def split_into_sections(content, section_pattern='## '):
     """
@@ -134,10 +135,23 @@ def process_tasks(content):
 
     return new_content, completed_items
 
-def process_markdown_file(file_path):
-    # Read the file
-    with open(file_path, 'r') as file:
-        content = file.read()
+def process_markdown_file(input_path, output_path=None):
+    """
+    Process a markdown file to move completed tasks to the Completed section.
+    
+    Args:
+        input_path (str): Path to input file or '-' for stdin
+        output_path (str): Path to output file or '-' for stdout. If None, same as input_path.
+        
+    Returns:
+        int: Number of completed items moved
+    """
+    # Read input
+    if input_path == '-':
+        content = sys.stdin.read()
+    else:
+        with open(input_path, 'r') as file:
+            content = file.read()
 
     # Get yesterday's date formatted as "Month Day, Year"
     yesterday = (datetime.now() - timedelta(days=1)).strftime("%B %d, %Y")
@@ -202,17 +216,21 @@ def process_markdown_file(file_path):
     # Reconstruct the file content
     new_content = '\n'.join(f"## {title}\n{content}" for title, content in new_sections)
 
-    # Write the updated content back to the file
-    with open(file_path, 'w') as file:
-        file.write(new_content)
+    # Write output
+    if output_path == '-':
+        sys.stdout.write(new_content)
+    else:
+        with open(output_path, 'w') as file:
+            file.write(new_content)
 
     return len(completed_items)
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print(f"Usage: python {sys.argv[0]} <markdown_file_path>")
-        sys.exit(1)
-
-    file_path = sys.argv[1]
-    completed_count = process_markdown_file(file_path)
-    print(f"Moved {completed_count} completed items to the 'Completed' section.")
+    parser = argparse.ArgumentParser(description='Process markdown tasks and move completed items to Completed section.')
+    parser.add_argument('input', help='Input file path (use - for stdin)')
+    parser.add_argument('output', nargs='?', help='Output file path (use - for stdout, defaults to input file)')
+    args = parser.parse_args()
+    
+    output_path = args.output if args.output is not None else args.input
+    completed_count = process_markdown_file(args.input, output_path)
+    print(f"Moved {completed_count} completed items to the 'Completed' section.", file=sys.stderr)
