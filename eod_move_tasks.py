@@ -216,6 +216,9 @@ def process_markdown_file(input_path, output_path=None):
     # Reconstruct the file content
     new_content = '\n'.join(f"## {title}\n{content}" for title, content in new_sections)
 
+    if not output_path:
+        output_path = input_path
+
     # Write output
     if output_path == '-':
         sys.stdout.write(new_content)
