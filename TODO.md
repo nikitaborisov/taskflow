@@ -8,7 +8,6 @@
 
 ## Low Priority
 - [ ] Add proper error handling in the main script
-- [ ] Add command-line argument support, including different output file
 - [ ] Create a setup script
 - [ ] Add CI/CD pipeline
 - [ ] Add documentation for TODO format, API usage
@@ -20,3 +19,4 @@
 ## Completed 
 - [x] Fix test failure for pre-existing section
 - [x] Rewrite the processing to be section-by-section
+- [x] Add command-line argument support, including different output file
