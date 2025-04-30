@@ -1,4 +1,3 @@
-from __future__ import annotations
 import unittest
 from todo_parser import Task, Section, TodoParser
 import pytest
