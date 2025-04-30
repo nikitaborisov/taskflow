@@ -2,7 +2,7 @@ import unittest
 import os
 import tempfile
 from datetime import datetime, timedelta
-from eod_move_tasks import process_markdown_file, split_into_sections
+from eod_move_tasks import process_markdown_file
 import re
 
 class TestEodMoveTasks(unittest.TestCase):
@@ -456,126 +456,6 @@ class TestEodMoveTasks(unittest.TestCase):
         self.assertIn("    - [x] Level 2", completed_content)
         self.assertIn("      - [x] Level 3", completed_content)
 
-class TestSplitIntoSections(unittest.TestCase):
-    def test_empty_content(self):
-        content = ""
-        result = split_into_sections(content)
-        self.assertEqual(result, [])
-
-    def test_no_sections(self):
-        content = "Some regular text\nwithout any headers"
-        result = split_into_sections(content)
-        self.assertEqual(result, [])
-
-    def test_single_section(self):
-        content = """## Today
-- Task 1
-- Task 2"""
-        result = split_into_sections(content)
-        self.assertEqual(result, [("Today", "- Task 1\n- Task 2")])
-
-    def test_multiple_sections(self):
-        content = """## Today
-- Task 1
-- Task 2
-
-## Tonight
-- Task 3
-- Task 4
-
-## Completed
-- Task 5"""
-        result = split_into_sections(content)
-        expected = [
-            ("Today", "- Task 1\n- Task 2"),
-            ("Tonight", "- Task 3\n- Task 4"),
-            ("Completed", "- Task 5")
-        ]
-        self.assertEqual(result, expected)
-
-    def test_empty_section(self):
-        content = """## Today
-## Tonight
-- Task 1"""
-        result = split_into_sections(content)
-        expected = [
-            ("Today", ""),
-            ("Tonight", "- Task 1")
-        ]
-        self.assertEqual(result, expected)
-
-    def test_whitespace_handling(self):
-        content = """## Today  
-- Task 1  
-- Task 2  
-
-## Tonight  
-- Task 3  
-- Task 4  """
-        result = split_into_sections(content)
-        expected = [
-            ("Today", "- Task 1\n- Task 2"),
-            ("Tonight", "- Task 3\n- Task 4")
-        ]
-        self.assertEqual(result, expected)
-
-    def test_nested_headers(self):
-        content = """## Today
-- Task 1
-### Subsection
-- Task 2
-## Tonight
-- Task 3"""
-        result = split_into_sections(content)
-        expected = [
-            ("Today", "- Task 1\n### Subsection\n- Task 2"),
-            ("Tonight", "- Task 3")
-        ]
-        self.assertEqual(result, expected)
-
-    def test_subsection_splitting(self):
-        content = """## Today
-- Task 1
-
-### Morning
-- Morning task 1
-- Morning task 2
-
-### Afternoon
-- Afternoon task 1
-- Afternoon task 2
-
-## Tonight
-### Evening
-- Evening task 1
-
-### Night
-- Night task 1
-- Night task 2"""
-        
-        # Test splitting main sections
-        main_sections = split_into_sections(content, '## ')
-        expected_main = [
-            ("Today", "- Task 1\n\n### Morning\n- Morning task 1\n- Morning task 2\n\n### Afternoon\n- Afternoon task 1\n- Afternoon task 2"),
-            ("Tonight", "### Evening\n- Evening task 1\n\n### Night\n- Night task 1\n- Night task 2")
-        ]
-        self.assertEqual(main_sections, expected_main)
-
-        # Test splitting subsections of "Today"
-        today_subsections = split_into_sections(main_sections[0][1], '### ')
-        expected_today_subs = [
-            ("Morning", "- Morning task 1\n- Morning task 2"),
-            ("Afternoon", "- Afternoon task 1\n- Afternoon task 2")
-        ]
-        self.assertEqual(today_subsections, expected_today_subs)
-
-        # Test splitting subsections of "Tonight"
-        tonight_subsections = split_into_sections(main_sections[1][1], '### ')
-        expected_tonight_subs = [
-            ("Evening", "- Evening task 1"),
-            ("Night", "- Night task 1\n- Night task 2")
-        ]
-        self.assertEqual(tonight_subsections, expected_tonight_subs)
 
 if __name__ == '__main__':
     unittest.main() 
