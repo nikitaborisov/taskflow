@@ -158,3 +158,46 @@ class TodoParser:
 
         return state.sections
 
+    def to_markdown(self, sections: List[Section]) -> str:
+        """Convert sections and tasks back to markdown format.
+        
+        Args:
+            sections: List of sections to convert
+            
+        Returns:
+            A string containing the markdown representation of the sections and tasks
+        """
+        def section_to_markdown(section: Section, indent: int = 0) -> str:
+            """Convert a section and its contents to markdown."""
+            result = []
+            # Add section header
+            result.append(f"{'#' * section.level} {section.title}")
+            
+            # Add tasks
+            for task in section.tasks:
+                result.append(task_to_markdown(task))
+            
+            # Add subsections
+            for subsection in section.subsections:
+                result.append(section_to_markdown(subsection, indent + 1))
+            
+            return '\n'.join(result)
+        
+        def task_to_markdown(task: Task) -> str:
+            """Convert a task and its subtasks to markdown."""
+            result = []
+            # Create task line
+            indent = '  ' * task.indent_level
+            status = 'x' if task.is_completed else ' '
+            procrastination = f" {'>' * task.procrastination_level} " if task.procrastination_level > 0 else " "
+            result.append(f"{indent}- [{status}]{procrastination}{task.content}")
+            
+            # Add subtasks
+            for subtask in task.subtasks:
+                result.append(task_to_markdown(subtask))
+            
+            return '\n'.join(result)
+        
+        # Convert all sections
+        return '\n\n'.join(section_to_markdown(section) for section in sections)
+

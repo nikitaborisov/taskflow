@@ -367,5 +367,64 @@ def test_task_hierarchy_properties(tasks: list[tuple[str, int, bool, int]]):
     for task in sections[0].tasks:
         validate_indent_levels(task)
 
+def assert_sections_equal(section1: Section, section2: Section) -> None:
+    """Recursively assert that two sections and their contents are equal."""
+    # Check section properties
+    assert section1.title == section2.title
+    assert section1.level == section2.level
+    
+    # Check tasks
+    assert len(section1.tasks) == len(section2.tasks)
+    for task1, task2 in zip(section1.tasks, section2.tasks):
+        assert_tasks_equal(task1, task2)
+    
+    # Check subsections
+    assert len(section1.subsections) == len(section2.subsections)
+    for sub1, sub2 in zip(section1.subsections, section2.subsections):
+        assert_sections_equal(sub1, sub2)
+
+def assert_tasks_equal(task1: Task, task2: Task) -> None:
+    """Recursively assert that two tasks and their subtasks are equal."""
+    # Check task properties
+    assert task1.content == task2.content
+    assert task1.is_completed == task2.is_completed
+    assert task1.procrastination_level == task2.procrastination_level
+    assert task1.indent_level == task2.indent_level
+    
+    # Check subtasks
+    assert len(task1.subtasks) == len(task2.subtasks)
+    for subtask1, subtask2 in zip(task1.subtasks, task2.subtasks):
+        assert_tasks_equal(subtask1, subtask2)
+
+def test_to_markdown():
+    """Test that to_markdown produces valid markdown that can be parsed back."""
+    parser = TodoParser()
+    
+    # Test basic structure
+    content = """# Today
+- [ ] Buy groceries
+- [x] Call mom
+- [ ] > Clean the house
+  - [ ] Vacuum
+  - [ ] Dust
+
+## Work
+- [ ] Check emails
+- [ ] >> Write documentation
+  - [ ] API docs
+"""
+    
+    # Parse and then convert back to markdown
+    sections = parser.parse_file(content)
+    markdown = parser.to_markdown(sections)
+    
+    # Parse the generated markdown
+    new_sections = parser.parse_file(markdown)
+    
+    # The two section lists should be equivalent
+    assert len(sections) == len(new_sections)
+    for section, new_section in zip(sections, new_sections):
+        assert_sections_equal(section, new_section)
+
 if __name__ == '__main__':
     unittest.main() 
