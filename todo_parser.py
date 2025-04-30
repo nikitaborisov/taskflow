@@ -1,3 +1,33 @@
+"""
+Todo Parser
+
+This module provides a parser for TODO files, as specified in the `FORMAT.md` file. The parser
+converts markdown content into a structured representation of sections and tasks.
+
+The parser enforces the following rules:
+
+Sections:
+- The first section must have the minimal level among all sections
+- Section levels must increase by 1 (e.g., h1 → h2 → h3)
+- Section titles cannot contain '#' or newlines
+- Leading/trailing whitespace in titles is stripped
+
+Tasks:
+- First task in a section must be top-level (no indentation)
+- Each subsequent task's indentation must be <= previous task's indentation + 1 level
+- Task content cannot contain '[' or ']' characters
+- Leading/trailing whitespace in content is stripped
+- Control characters are not allowed in content
+
+The parser will raise errors for:
+- Tasks outside of sections
+- Subtasks without parent tasks
+- Invalid section hierarchy
+- Empty section titles
+- Tasks with invalid indentation
+- Unexpected non-empty lines
+"""
+
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict
 import re
