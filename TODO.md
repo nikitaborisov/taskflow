@@ -1,17 +1,15 @@
 # Todo List
 
 ## High Priority
+- [ ] Sort TODOs based on priority, procrastination
+- [ ] Complete TODOs in non-today sections
+- [ ] Add sections for future days that get moved into TODAY
 
 ## Medium Priority
 - [ ] Improve test coverage
-- [ ] Create a requirements.txt file for dependencies
+- [ ] Test processing functions directly
 
 ## Low Priority
-- [ ] Add proper error handling in the main script
-- [ ] Create a setup script
-- [ ] Add CI/CD pipeline
-- [ ] Add documentation for TODO format, API usage
-- [ ] Consider rewriting processing to be line-by-line
 
 ## Future Ideas
 - [ ] Add web app interface
@@ -20,3 +18,7 @@
 - [x] Fix test failure for pre-existing section
 - [x] Rewrite the processing to be section-by-section
 - [x] Add command-line argument support, including different output file
+- [x] Create a requirements.txt file for dependencies
+- [x] Add CI pipeline
+- [x] Rewrite processing
+- [x] Add documentation for TODO format, API usage
