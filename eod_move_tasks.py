@@ -61,28 +61,17 @@ def process_tasks(section: Section) -> tuple[Section, list[Task]]:
     
     return new_section, completed_tasks
 
-def process_markdown_file(input_path: str, output_path: str = None) -> int:
+def process_sections(sections: list[Section]) -> tuple[list[Section], int]:
     """
-    Process a markdown file to move completed tasks to the Completed section.
+    Process sections to move completed tasks to the Completed section.
     
     Args:
-        input_path: Path to input file or '-' for stdin
-        output_path: Path to output file or '-' for stdout. If None, same as input_path.
+        sections: List of sections to process
         
     Returns:
-        int: Number of completed items moved
+        tuple: (new_sections, completed_count) where new_sections is the processed sections
+               and completed_count is the number of completed items moved
     """
-    # Read input
-    if input_path == '-':
-        content = sys.stdin.read()
-    else:
-        with open(input_path, 'r') as file:
-            content = file.read()
-
-    # Parse the content
-    parser = TodoParser()
-    sections = parser.parse_file(content)
-    
     # Get yesterday's date formatted as "Month Day, Year"
     yesterday = (datetime.now() - timedelta(days=1)).strftime("%B %d, %Y")
     
@@ -145,6 +134,33 @@ def process_markdown_file(input_path: str, output_path: str = None) -> int:
             )
             new_sections.append(completed_section)
 
+    return new_sections, len(completed_tasks)
+
+def process_markdown_file(input_path: str, output_path: str = None) -> int:
+    """
+    Process a markdown file to move completed tasks to the Completed section.
+    
+    Args:
+        input_path: Path to input file or '-' for stdin
+        output_path: Path to output file or '-' for stdout. If None, same as input_path.
+        
+    Returns:
+        int: Number of completed items moved
+    """
+    # Read input
+    if input_path == '-':
+        content = sys.stdin.read()
+    else:
+        with open(input_path, 'r') as file:
+            content = file.read()
+
+    # Parse the content
+    parser = TodoParser()
+    sections = parser.parse_file(content)
+    
+    # Process sections
+    new_sections, completed_count = process_sections(sections)
+
     # Convert back to markdown
     new_content = parser.to_markdown(new_sections)
 
@@ -158,7 +174,7 @@ def process_markdown_file(input_path: str, output_path: str = None) -> int:
         with open(output_path, 'w') as file:
             file.write(new_content)
 
-    return len(completed_tasks)
+    return completed_count
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process markdown tasks and move completed items to Completed section.')
